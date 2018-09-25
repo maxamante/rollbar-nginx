@@ -3,16 +3,18 @@ local http = require('resty.http')
 
 local rollbarHref = 'https://api.rollbar.com/api/1/'
 local apiToken = os.getenv('ROLLBAR_API_TOKEN')
+local forceFail = os.getenv('ROLLBAR_FORCE_ONFAIL')
 
 assert(apiToken ~= nil, 'Environment variable ROLLBAR_API_TOKEN not set')
 
 local M = {}
 local Helpers = {}
 
-function M.createMessageItem(msg, environment, altApiToken, altHref)
+function M.createMessageItem(msg, environment, altApiToken, altHref, altForceFail)
   apiHref = altHref or rollbarHref
   token = altApiToken or apiToken
   env = environment or 'production'
+  exitOnFail = altForceFail or forceFail or false
 
   -- Create item details table
 
@@ -34,13 +36,11 @@ function M.createMessageItem(msg, environment, altApiToken, altHref)
   local request = Helpers.buildRequest({}, body, 'POST')
   local res, err = httpc:request_uri(apiHref .. 'item/', request)
   if not res or res.status ~= 200 then
-    return ngx.exit(res.status)
+    ngx.log(ngx.ERR, 'Error occurred while creating Rollbar message item: ' .. res.status)
+    if exitOnFail then
+      return ngx.exit(res.status)
+    end
   end
-
-  -- Finish the request
-
-  local response = res.body
-  Helpers.finish(res, response)
 end
 
 function Helpers.buildRequest(headers, body, method)
@@ -63,15 +63,6 @@ function Helpers.buildRequest(headers, body, method)
     req['body'] = cjson.encode(body)
   end
   return req
-end
-
-function Helpers.finish(res, response)
-  ngx.status = res.status
-  ngx.header.content_type = res.headers['Content-Type']
-  ngx.header.cache_control = 'no-store'
-  ngx.header.pragma = 'no-cache'
-  ngx.say(cjson.encode(response))
-  ngx.exit(ngx.HTTP_OK)
 end
 
 return M

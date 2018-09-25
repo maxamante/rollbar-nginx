@@ -86,3 +86,6 @@ location = /admin/api/ {
     }
 }
 ```
+
+Creating Rollbar message items will not break or exit execute unless you set
+it to do so.

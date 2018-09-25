@@ -1,8 +1,8 @@
 package = 'rollbar-nginx'
-version = '0.1.0-0'
+version = '0.1.1-0'
 source = {
     url = 'git://github.com/maxamante/rollbar-nginx',
-    tag = '0.1.0'
+    tag = '0.1.1'
 }
 description = {
     summary = 'A Rollbar + nginx integration',

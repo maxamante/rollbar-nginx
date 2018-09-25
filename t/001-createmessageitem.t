@@ -3,7 +3,7 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: rollbar.createMessageItem exits when the POST /item request > 200
+=== TEST 1: rollbar.createMessageItem continues when the POST /item request > 200
 --- main_config
 env ROLLBAR_API_TOKEN;
 --- config
@@ -25,7 +25,9 @@ Content-type: application/json
 --- request
 GET /t
 --- ignore_response_body
---- error_code: 400
+--- error_code: 200
+--- error_log eval
+qr/.+ Error occurred while creating Rollbar message item: 400, .+/
 
 
 === TEST 2: rollbar.createMessageItem happy path
@@ -60,3 +62,30 @@ Content-type: application/json
 --- request
 GET /t
 --- error_code: 200
+
+
+=== TEST 3: rollbar.createMessageItem continues when the POST /item request > 200; exits if forceFail
+--- main_config
+env ROLLBAR_API_TOKEN;
+--- config
+    location = /mock/item/ {
+        content_by_lua_block {
+            ngx.header.content_type = 'application/json'
+            ngx.exit(400)
+        }
+    }
+
+    location = /t {
+        content_by_lua_block {
+            local rollbar = require('rollbar-nginx')
+            rollbar.createMessageItem('test', 'test', 'test token', 'http://127.0.0.1:1984/mock/', true)
+        }
+    }
+--- more_headers
+Content-type: application/json
+--- request
+GET /t
+--- ignore_response_body
+--- error_code: 400
+--- error_log eval
+qr/.+ Error occurred while creating Rollbar message item: 400, .+/
